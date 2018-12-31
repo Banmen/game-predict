@@ -12,48 +12,72 @@ import numpy as np
 import codecs
 import regex
 
-def load_de_vocab():
-    vocab = [line.split()[0] for line in codecs.open('preprocessed/de.vocab.tsv', 'r', 'utf-8').read().splitlines() if int(line.split()[1])>=hp.min_cnt]
+def load_vocab(path_to_vacab="preprocessed/hero-vocab.txt"):
+    vocab = [line.split()[0] for line in codecs.open(path_to_vacab, 'r', 'utf-8').read().splitlines() if int(line.split()[1])>=hp.min_cnt]
     word2idx = {word: idx for idx, word in enumerate(vocab)}
     idx2word = {idx: word for idx, word in enumerate(vocab)}
     return word2idx, idx2word
 
-def load_en_vocab():
-    vocab = [line.split()[0] for line in codecs.open('preprocessed/en.vocab.tsv', 'r', 'utf-8').read().splitlines() if int(line.split()[1])>=hp.min_cnt]
-    word2idx = {word: idx for idx, word in enumerate(vocab)}
-    idx2word = {idx: word for idx, word in enumerate(vocab)}
-    return word2idx, idx2word
+g_word2idx, g_idx2word = load_vocab("preprocessed/hero-vocab.txt")
 
-def create_data(source_sents, target_sents): 
+g_label2idx, g_idx2label = load_vocab("preprocessed/total-labels.txt")
+
+
+def create_data(source_sents, target_sents):
     de2idx, idx2de = load_de_vocab()
     en2idx, idx2en = load_en_vocab()
-    
+
     # Index
     x_list, y_list, Sources, Targets = [], [], [], []
     for source_sent, target_sent in zip(source_sents, target_sents):
-        x = [de2idx.get(word, 1) for word in (source_sent + u" </S>").split()] # 1: OOV, </S>: End of Text
-        y = [en2idx.get(word, 1) for word in (target_sent + u" </S>").split()] 
-        if max(len(x), len(y)) <=hp.maxlen:
+        x = [de2idx.get(word, 1) for word in (source_sent + u" </S>").split()]  # 1: OOV, </S>: End of Text
+        y = [en2idx.get(word, 1) for word in (target_sent + u" </S>").split()]
+        if max(len(x), len(y)) <= hp.maxlen:
             x_list.append(np.array(x))
             y_list.append(np.array(y))
             Sources.append(source_sent)
             Targets.append(target_sent)
-    
-    # Pad      
+
+    # Pad
     X = np.zeros([len(x_list), hp.maxlen], np.int32)
     Y = np.zeros([len(y_list), hp.maxlen], np.int32)
     for i, (x, y) in enumerate(zip(x_list, y_list)):
-        X[i] = np.lib.pad(x, [0, hp.maxlen-len(x)], 'constant', constant_values=(0, 0))
-        Y[i] = np.lib.pad(y, [0, hp.maxlen-len(y)], 'constant', constant_values=(0, 0))
-    
+        X[i] = np.lib.pad(x, [0, hp.maxlen - len(x)], 'constant', constant_values=(0, 0))
+        Y[i] = np.lib.pad(y, [0, hp.maxlen - len(y)], 'constant', constant_values=(0, 0))
+
     return X, Y, Sources, Targets
 
+
 def load_train_data():
-    de_sents = [regex.sub("[^\s\p{Latin}']", "", line) for line in codecs.open(hp.source_train, 'r', 'utf-8').read().split("\n") if line and line[0] != "<"]
-    en_sents = [regex.sub("[^\s\p{Latin}']", "", line) for line in codecs.open(hp.target_train, 'r', 'utf-8').read().split("\n") if line and line[0] != "<"]
-    
+    de_sents = [regex.sub("[^\s\p{Latin}']", "", line) for line in
+                codecs.open(hp.source_train, 'r', 'utf-8').read().split("\n") if line and line[0] != "<"]
+    en_sents = [regex.sub("[^\s\p{Latin}']", "", line) for line in
+                codecs.open(hp.target_train, 'r', 'utf-8').read().split("\n") if line and line[0] != "<"]
+
     X, Y, Sources, Targets = create_data(de_sents, en_sents)
     return X, Y
+
+
+def load_data(path_to_file):
+    x_list , y_list = []
+    with open(path_to_file) as reader:
+        for line in reader:
+            line = line.strip("\r\n").strip()
+            ss = line.split(" ")
+            label = g_label2idx[ss[0]]
+            x = [g_word2idx.get(word, 1) for word in ss[1:]]
+            x_list.append(x)
+            y_list.append(label)
+
+    # pad
+    X = np.zeros([len(x_list), hp.maxlen], np.int32)
+    for i, x in enumerate(x_list):
+        X[i] = np.lib.pad(x, [0, hp.maxlen - len(x)], 'constant', constant_values=(0, 0))
+
+    return X, np.array(y_list)
+
+
+
     
 def load_test_data():
     def _refine(line):
@@ -67,9 +91,11 @@ def load_test_data():
     X, Y, Sources, Targets = create_data(de_sents, en_sents)
     return X, Sources, Targets # (1064, 150)
 
+
+
 def get_batch_data():
     # Load data
-    X, Y = load_train_data()
+    X, Y = load_data("./corpus/camp-valid.txt")
     
     # calc total batch count
     num_batch = len(X) // hp.batch_size
