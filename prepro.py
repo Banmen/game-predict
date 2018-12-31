@@ -16,7 +16,7 @@ def make_vocab():
             line = line.strip("\r\n")
             if not line:
                 continue
-            ss = line.split("\t")
+            ss = line.split(" ")
             if len(ss) < 11:
                 continue
             label = ss[0]
