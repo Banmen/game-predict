@@ -59,7 +59,7 @@ def load_train_data():
 
 
 def load_data(path_to_file):
-    x_list , y_list = []
+    x_list , y_list = [], []
     with open(path_to_file) as reader:
         for line in reader:
             line = line.strip("\r\n").strip()
@@ -94,6 +94,7 @@ def load_test_data():
 
 
 def get_batch_data():
+    print("start to reload batch data...")
     # Load data
     X, Y = load_data("./corpus/camp-valid.txt")
     
@@ -114,6 +115,8 @@ def get_batch_data():
                                 capacity=hp.batch_size*64,   
                                 min_after_dequeue=hp.batch_size*32, 
                                 allow_smaller_final_batch=False)
+    print("end reload batch data...")
+
     
     return x, y, num_batch # (N, T), (N, T), ()
 

@@ -166,7 +166,9 @@ if __name__ == '__main__':
     # en2idx, idx2en = load_en_vocab()
     
     # Construct graph
-    g = Graph(True); print("Graph loaded")
+    g = Graph(True)
+
+    print("Graph loaded")
     
     # Start session
     sv = tf.train.Supervisor(graph=g.graph, 
@@ -176,8 +178,8 @@ if __name__ == '__main__':
         for epoch in range(1, hp.num_epochs+1): 
             if sv.should_stop(): break
             for step in tqdm(range(g.num_batch), total=g.num_batch, ncols=70, leave=False, unit='b'):
-                sess.run(g.train_op)
-                
+                acc, _ = sess.run(g.acc, g.train_op)
+                print("Epoch%s, step:%s, acc:%s" % (epoch, step + 1, acc))
             gs = sess.run(g.global_step)   
             sv.saver.save(sess, hp.logdir + '/model_epoch_%02d_gs_%d' % (epoch, gs))
     
